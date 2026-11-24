@@ -49,7 +49,6 @@ func NewSender(logger types.Logger) *WSSender {
 		onMessageSent:            func(context.Context, *protobufs.AgentToServer, int) {},
 	}
 	s.heartbeatIntervalMs.Store(defaultHeartbeatIntervalMs)
-	s.maxMessageSize = internal.DefaultMaxMessageSize
 
 	return s
 }
@@ -102,10 +101,6 @@ func (s *WSSender) SetOnMessageSent(f func(ctx context.Context, msg *protobufs.A
 		f = func(context.Context, *protobufs.AgentToServer, int) {}
 	}
 	s.onMessageSent = f
-}
-
-func (s *WSSender) SetMaxMessageSize(maxMessageSize int64) {
-	s.maxMessageSize = internal.ResolveMaxMessageSize(maxMessageSize)
 }
 
 func (s *WSSender) shouldSendHeartbeat() <-chan time.Time {
@@ -185,11 +180,10 @@ func (s *WSSender) sendNextMessage(ctx context.Context) error {
 }
 
 func (s *WSSender) sendMessage(ctx context.Context, msg *protobufs.AgentToServer) error {
-	size, err := internal.WriteWSMessage(s.conn, msg, s.maxMessageSize)
-	if err != nil {
+	if err := internal.WriteWSMessage(s.conn, msg); err != nil {
 		s.logger.Errorf(ctx, "Cannot write WS message: %v", err)
 		return err
 	}
-	s.onMessageSent(ctx, msg, size)
+	s.onMessageSent(ctx, msg, proto.Size(msg))
 	return nil
 }

@@ -17,9 +17,9 @@ import (
 func TestMessageSentAndReceivedCallbacks(t *testing.T) {
 	testClients(t, func(t *testing.T, client OpAMPClient) {
 		srv := internal.StartMockServer(t)
-		srv.SetOnMessage(func(msg *protobufs.AgentToServer) *protobufs.ServerToAgent {
+		srv.OnMessage = func(msg *protobufs.AgentToServer) *protobufs.ServerToAgent {
 			return &protobufs.ServerToAgent{InstanceUid: msg.InstanceUid}
-		})
+		}
 
 		var sentCount, receivedCount atomic.Int64
 		var sentSizeOK, receivedSizeOK atomic.Bool
@@ -60,9 +60,9 @@ func TestOnDisconnectCalledWhenServerDropsConnection(t *testing.T) {
 	srv := internal.StartMockServer(t)
 
 	var conn atomic.Value
-	srv.SetOnWSConnect(func(c *websocket.Conn) {
+	srv.OnWSConnect = func(c *websocket.Conn) {
 		conn.Store(c)
-	})
+	}
 
 	var connected, disconnected atomic.Int64
 	var disconnectErr atomic.Value
