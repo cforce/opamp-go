@@ -100,9 +100,9 @@ func TestOnDisconnectCalledWhenServerDropsConnection(t *testing.T) {
 
 func TestOnDisconnectCalledWhenInitialWebSocketMessageFails(t *testing.T) {
 	srv := internal.StartMockServer(t)
-	srv.SetOnWSConnect(func(conn *websocket.Conn) {
+	srv.OnWSConnect = func(conn *websocket.Conn) {
 		assert.NoError(t, conn.Close())
-	})
+	}
 
 	var connected, disconnected atomic.Int64
 	settings := types.StartSettings{
