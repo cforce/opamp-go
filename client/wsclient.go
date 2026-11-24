@@ -260,9 +260,6 @@ func (c *wsClient) tryConnectOnce(ctx context.Context) (retryAfter sharedinterna
 	}()
 	conn, resp, err := c.dialer.DialContext(ctx, c.url.String(), c.getHeader())
 	if err != nil {
-		if !c.common.IsStopping() {
-			c.common.Callbacks.OnConnectFailed(ctx, err)
-		}
 		if resp != nil {
 			duration := sharedinternal.ExtractRetryAfterHeader(resp)
 			if resp.StatusCode >= 300 && resp.StatusCode < 400 {
@@ -380,6 +377,9 @@ func (c *wsClient) runOneCycle(ctx context.Context, sendFirstMessage bool) {
 	// message.
 	if err := c.sender.Start(senderCtx, c.conn); err != nil {
 		c.common.Logger.Errorf(senderCtx, "Failed to send message after connection: %v", err)
+		if !c.common.IsStopping() {
+			c.common.Callbacks.OnDisconnect(ctx, err)
+		}
 		// We could not send the report, the only thing we can do is start over.
 		return
 	}

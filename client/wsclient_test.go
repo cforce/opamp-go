@@ -154,6 +154,68 @@ func TestWSClientStartWithHeartbeatInterval(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
+=======
+func TestWSClientResponseMessageSizeLimit(t *testing.T) {
+	serverConnCh := make(chan *websocket.Conn, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade failed: %v", err)
+			return
+		}
+		serverConnCh <- conn
+	}))
+	t.Cleanup(srv.Close)
+
+	u, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	u.Scheme = "ws"
+
+	client := NewWebSocket(nil)
+	client.dialer = *websocket.DefaultDialer
+	client.url = u
+	client.getHeader = func() http.Header { return nil }
+	client.maxMessageSize = 1
+	client.common.Callbacks.SetDefaults()
+
+	_, err = client.tryConnectOnce(context.Background())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.conn.Close() })
+
+	serverConn := <-serverConnCh
+	t.Cleanup(func() { _ = serverConn.Close() })
+
+	require.NoError(t, serverConn.WriteMessage(websocket.BinaryMessage, []byte("xx")))
+	_ = client.conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = client.conn.ReadMessage()
+	assert.ErrorContains(t, err, "read limit")
+}
+
+func TestTryConnectOnceCallsOnConnectFailedOnce(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	require.NoError(t, listener.Close())
+
+	var failures atomic.Int64
+	client := NewWebSocket(nil)
+	client.url, err = url.Parse("ws://" + listener.Addr().String())
+	require.NoError(t, err)
+	client.dialer = *websocket.DefaultDialer
+	client.getHeader = func() http.Header { return nil }
+	client.common.Callbacks = types.Callbacks{
+		OnConnectFailed: func(context.Context, error) {
+			failures.Add(1)
+		},
+	}
+	client.common.Callbacks.SetDefaults()
+
+	_, err = client.tryConnectOnce(context.Background())
+	require.Error(t, err)
+	assert.EqualValues(t, 1, failures.Load())
+}
+
 func TestDisconnectWSByServer(t *testing.T) {
 	// Start a Server.
 	srv := internal.StartMockServer(t)

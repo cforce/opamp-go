@@ -57,14 +57,18 @@ func NewSender(logger types.Logger) *WSSender {
 // earlier. To stop the WSSender cancel the ctx.
 func (s *WSSender) Start(ctx context.Context, conn *websocket.Conn) error {
 	s.conn = conn
-	err := s.sendNextMessage(ctx)
-
-	// Run the sender in the background.
 	s.stopped = make(chan struct{})
 	s.err = nil
+
+	if err := s.sendNextMessage(ctx); err != nil {
+		close(s.stopped)
+		return err
+	}
+
+	// Run the sender in the background after the initial message is sent.
 	go s.run(ctx)
 
-	return err
+	return nil
 }
 
 // IsStopped returns a channel that's closed when the sender is stopped.
